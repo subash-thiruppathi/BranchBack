@@ -1,6 +1,6 @@
-# Branch Preview
+# BranchBack
 
-A local, read-only CLI for a developer who committed the latest change on the wrong branch and wants it on a fresh branch. Requires Git and Python 3. Run the executable from the affected repository, or place it on PATH and run `git branch-preview feature/invoice`.
+A local, read-only CLI for a developer who committed the latest change on the wrong branch and wants it on a fresh branch. Requires Git and Python 3. Run the executable from the affected repository, or place it on PATH and run `git branchback feature/invoice`.
 
 ## Use case
 

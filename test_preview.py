@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-CLI = Path(__file__).with_name("git-branch-preview").resolve()
+CLI = Path(__file__).with_name("git-branchback").resolve()
 
 
 class RecoveryTest(unittest.TestCase):

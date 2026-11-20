@@ -1,7 +1,7 @@
 {
   "name": "branchback",
-  "version": "0.1.0",
-  "description": "Preview recovery after committing to the wrong Git branch.",
+  "version": "0.2.0",
+  "description": "Explain local Git state, review outgoing changes, and preview wrong-branch recovery.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/subash-thiruppathi/BranchBack.git"
@@ -10,7 +10,9 @@
     "git-branchback": "git-branchback"
   },
   "files": [
-    "git-branchback"
+    "git-branchback",
+    "branchback_explain.py",
+    "branchback_prepush.py"
   ],
   "scripts": {
     "test": "python3 -m unittest -v"

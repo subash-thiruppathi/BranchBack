@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Preview one wrong-branch commit recovery using local Git evidence."""
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -61,15 +62,42 @@ def preview(target, count):
     print("Remote evidence is local and may be stale. Confirm the commit is private.")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(argv):
+    if argv and argv[0] in ("explain", "prepush"):
+        command = argv[0]
+        parser = argparse.ArgumentParser(prog=f"git branchback {command}")
+        parser.add_argument("--json", action="store_true", help="print a machine-readable report")
+        args = parser.parse_args(argv[1:])
+        if command == "explain":
+            import branchback_explain as workflow
+        else:
+            import branchback_prepush as workflow
+        try:
+            report = workflow.inspect_repo(git)
+        except (Blocked, OSError, UnicodeError, ValueError) as error:
+            if args.json:
+                print(json.dumps({"error": str(error)}))
+                return 1
+            sys.exit(str(error))
+        print(json.dumps(report, indent=2) if args.json else workflow.render(report))
+        return 0
+
+    parser = argparse.ArgumentParser(
+        prog="git branchback",
+        description="Preview wrong-branch recovery or inspect your Git workflow.",
+        epilog="Reports: explain [--json], prepush [--json]. Use -- before a branch named explain or prepush.")
     parser.add_argument("new_branch")
     parser.add_argument("--commits", type=int, default=1, metavar="N",
                         help="preview the latest N consecutive single-parent commits (default: 1)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.commits < 1 or args.commits > 2147483647:
         parser.error("--commits must be between 1 and 2147483647")
     try:
         preview(args.new_branch, args.commits)
     except (Blocked, OSError, UnicodeError) as error:
         sys.exit("Preview unavailable: " + str(error))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

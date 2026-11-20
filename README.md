@@ -1,6 +1,6 @@
 # BranchBack
 
-A local, read-only CLI for a developer who committed the latest change on the wrong branch and wants it on a fresh branch. Requires Git and Python 3. Run the executable from the affected repository, or place it on PATH and run `git branchback feature/invoice`.
+BranchBack is a read-only Git CLI. Use it to explain the state of your checkout, review outgoing commits before a push, or preview recovery when you committed on the wrong branch.
 
 ## Install and run
 
@@ -10,15 +10,55 @@ Use a terminal with Git and Python 3 on PATH (macOS, Linux, or WSL). npm is need
 npm install --global .
 ```
 
-Once version 0.1.0 is published to npm, the registry installation command is `npm install --global branchback@0.1.0`. The package installs the executable as `git-branchback`, which Git discovers as a subcommand.
+For the published single-commit recovery tool, install `npm install --global branchback@0.1.0`. The daily checks and multi-commit recovery examples below require the development checkout. The package installs the executable as `git-branchback`, which Git discovers as a subcommand.
 
-Inside the repository where the mistake happened, choose a new branch name:
+Inside the repository where the mistake happened, choose a new branch name.
 
 ```sh
 git branchback feature/invoice
 ```
 
 For help, run `git branchback -h`. If Git cannot find the command, check that the npm global executable directory is on PATH and that `git-branchback -h` works directly.
+
+## Daily Git checks (development checkout)
+
+### Resume work with `explain`
+
+Run this when returning to a project or taking over a teammate’s worktree.
+
+```sh
+git branchback explain
+```
+
+Check the current branch and commit, the upstream relationship, and the counts of staged, unstaged, untracked and conflicted paths. The report also identifies an in-progress Git operation, such as a merge or rebase. Staged and unstaged totals may include the same path.
+
+### Review the current branch with `prepush`
+
+Before pushing, check which destination Git resolves for your branch and which commits are ahead of its locally recorded tip.
+
+```sh
+git branchback prepush
+```
+
+For example, after committing a fix and its tests on a feature branch, review the outgoing commit list and changed paths. If the destination contains commits missing locally, inspect the divergence before pushing. The review reads local Git refs. If you need the remote’s latest state, fetch it separately and repeat the review. A local comparison cannot predict server-side permissions or hooks. The report covers the current branch’s default push destination when Git can map it to an existing remote-tracking ref. Explicit push arguments, other branches and tags fall outside this review.
+
+| Pre-push status | Meaning |
+|---|---|
+| `up-to-date` | Both local tips match. |
+| `fast-forward` | The locally recorded destination can advance to the current branch tip. |
+| `non-fast-forward` | The locally recorded destination contains history absent from the current branch. |
+| `unavailable` | BranchBack lacks sufficient local evidence to classify this push. |
+
+### Read either report from a script
+
+```sh
+git branchback explain --json
+git branchback prepush --json
+```
+
+The explain report includes `branch`, `head`, `upstream`, `ahead`, `behind`, `changes`, and `operations`. A detached HEAD has a null branch. An unborn branch has a null commit. Unavailable comparisons use null counts. An inspection error exits with status 1 and emits a JSON error on standard output when you request JSON.
+
+For a recovery preview whose new branch is literally named `explain` or `prepush`, put `--` before its name, for example `git branchback -- explain`.
 
 ## Multiple commits on the wrong branch (development checkout)
 
@@ -32,7 +72,7 @@ The destination would keep both commits at the current tip. The source would mov
 
 ## Read the preview
 
-The first commit ID is the current tip. It would become the tip of the new branch. The second ID is its parent. It would become the original branch’s tip. The path counts describe the current index and working tree. For example, one file staged and then edited again contributes to both the staged and unstaged totals. An untracked file contributes only to the third total.
+The new branch would point to the current tip. The original branch would point to the parent of the oldest selected commit. The path counts describe the current index and working tree. For example, one file staged and then edited again contributes to both the staged and unstaged totals. An untracked file contributes only to the third total.
 
 A successful preview exits with status 0 and stops there. BranchBack has no apply command. Review the branch names and commit IDs and verify that nobody else relies on the commit before performing any recovery separately.
 
@@ -49,7 +89,7 @@ A successful preview exits with status 0 and stops there. BranchBack has no appl
 
 Mira commits an invoice fix on main, stages a test adjustment, then edits the same file again. She wants the fix and both layers of unfinished work on feature/invoice. She runs the preview before touching either branch. It displays the proposed destination at the original commit and the source at its parent. Staged and unstaged counts overlap when a file has changes in both layers. Untracked files stay in the working directory. The plan assumes the developer confirms the tip was never shared. Re-run after any repository change.
 
-## Architecture
+## Recovery preview architecture
 
 | Component | Input and responsibility | Output |
 |---|---|---|

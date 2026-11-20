@@ -20,7 +20,7 @@ def git(*args):
     return result.stdout
 
 
-def preview(target, count):
+def preview(target, count, as_json=False):
     if git("rev-parse", "--is-inside-work-tree").strip() != b"true":
         raise Blocked("Open a repository working tree.")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]*", target):
@@ -49,6 +49,17 @@ def preview(target, count):
     codes = [entry[:2] for entry in status if entry]
     if any(c in (b"DD", b"AU", b"UD", b"UA", b"DU", b"AA", b"UU") for c in codes):
         raise Blocked("Resolve conflicted paths first.")
+    changes = {
+        "staged": sum(c[:1] not in (b" ", b"?") for c in codes),
+        "unstaged": sum(c[1:] not in (b" ", b"?") for c in codes),
+        "untracked": codes.count(b"??"),
+    }
+    if as_json:
+        print(json.dumps({"source_branch": source, "new_branch": target,
+                          "destination_tip": tip, "source_after": parent,
+                          "selected_commits": [row[0] for row in reversed(commits)],
+                          "changes": changes}))
+        return
     print(f"Preview only\nNew branch {target} would point to {tip}.")
     if count > 1:
         print(f"Selected {count} consecutive commits, oldest first:")
@@ -56,13 +67,29 @@ def preview(target, count):
             print(commit)
     print(f"Switching there at the same commit would retain your index and working files.")
     print(f"Then {source} would move back to {parent}.")
-    print("Current paths: {} staged, {} unstaged, {} untracked.".format(
-        sum(c[:1] not in (b" ", b"?") for c in codes),
-        sum(c[1:] not in (b" ", b"?") for c in codes), codes.count(b"??")))
+    print("Current paths: {staged} staged, {unstaged} unstaged, {untracked} untracked.".format(**changes))
     print("Remote evidence is local and may be stale. Confirm the commit is private.")
 
 
+WORKFLOWS = {
+    **dict.fromkeys(("recover", "find", "stash-find", "conflicts", "undo-plan"), "branchback_recovery"),
+    **dict.fromkeys(("sync-plan", "review", "release-notes"), "branchback_reports"),
+    **dict.fromkeys(("hotfix", "checkpoint", "cleanup"), "branchback_maintenance"),
+    "workspace": "branchback_workspace",
+}
+
+
 def main(argv):
+    if argv and argv[0] in WORKFLOWS:
+        import importlib
+        try:
+            return importlib.import_module(WORKFLOWS[argv[0]]).run(argv, git)
+        except (Blocked, OSError, UnicodeError, ValueError, subprocess.SubprocessError) as error:
+            if "--json" in argv:
+                print(json.dumps({"error": str(error)}))
+                return 1
+            sys.exit(str(error))
+
     if argv and argv[0] in ("explain", "prepush"):
         command = argv[0]
         parser = argparse.ArgumentParser(prog=f"git branchback {command}")
@@ -85,16 +112,20 @@ def main(argv):
     parser = argparse.ArgumentParser(
         prog="git branchback",
         description="Preview wrong-branch recovery or inspect your Git workflow.",
-        epilog="Reports: explain [--json], prepush [--json]. Use -- before a branch named explain or prepush.")
+        epilog="Commands: explain, prepush, " + ", ".join(WORKFLOWS) + ". Use -- before a destination branch with a command name.")
     parser.add_argument("new_branch")
+    parser.add_argument("--json", action="store_true", help="emit a JSON recovery preview")
     parser.add_argument("--commits", type=int, default=1, metavar="N",
                         help="preview the latest N consecutive single-parent commits (default: 1)")
     args = parser.parse_args(argv)
     if args.commits < 1 or args.commits > 2147483647:
         parser.error("--commits must be between 1 and 2147483647")
     try:
-        preview(args.new_branch, args.commits)
+        preview(args.new_branch, args.commits, args.json)
     except (Blocked, OSError, UnicodeError) as error:
+        if args.json:
+            print(json.dumps({"error": str(error)}))
+            return 1
         sys.exit("Preview unavailable: " + str(error))
     return 0
 

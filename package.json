@@ -1,7 +1,7 @@
 {
   "name": "branchback",
-  "version": "0.2.0",
-  "description": "Explain local Git state, review outgoing changes, and preview wrong-branch recovery.",
+  "version": "0.3.0",
+  "description": "Local Git workflows for recovery, review, worktrees, checkpoints, releases and workspace inspection.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/subash-thiruppathi/BranchBack.git"
@@ -11,8 +11,8 @@
   },
   "files": [
     "git-branchback",
-    "branchback_explain.py",
-    "branchback_prepush.py"
+    "branchback_*.py",
+    "*.md"
   ],
   "scripts": {
     "test": "python3 -m unittest -v"

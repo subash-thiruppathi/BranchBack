@@ -1,6 +1,6 @@
 # BranchBack
 
-BranchBack is a read-only Git CLI. Use it to explain the state of your checkout, review outgoing commits before a push, or preview recovery when you committed on the wrong branch.
+BranchBack provides local Git reports, recovery previews, and explicit worktree and checkpoint actions. Use it to explain the state of your checkout, review outgoing commits before a push, or preview recovery when you committed on the wrong branch.
 
 ## Install and run
 
@@ -19,6 +19,34 @@ git branchback feature/invoice
 ```
 
 For help, run `git branchback -h`. If Git cannot find the command, check that the npm global executable directory is on PATH and that `git-branchback -h` works directly.
+
+## Workflow guide (development checkout)
+
+Run commands below as `git branchback COMMAND`. Use `COMMAND -h` for its accepted arguments. Local history and tracking refs are the evidence for reports. Fetch separately when you need updated tracking refs. Use `git branchback -- NAME` to preview recovery to a branch whose name matches a command.
+
+| Activity | Command |
+|---|---|
+| Resume work or inspect outgoing commits | `explain`, `prepush` |
+| Locate a lost commit or stashed change | `recover`, `stash-find` |
+| Find branches and tags containing a change | `find` |
+| Inspect a conflict or plan an undo | `conflicts`, `undo-plan` |
+| Compare synchronization options or review a branch | `sync-plan`, `review` |
+| Start an isolated hotfix or preserve unfinished work | `hotfix`, `checkpoint` |
+| Inspect merged branches for cleanup | `cleanup` |
+| Summarize commits between releases | `release-notes` |
+| Scan local repositories | `workspace ~/projects` |
+
+Read the [recovery guide](RECOVERY.md), [maintenance guide](MAINTENANCE.md), and [report guide](REPORTS.md) for complete workflows.
+
+### Workspace and automation
+
+`git branchback workspace ~/projects --json` recursively inspects working repositories, including linked worktrees. It reports dirty, ahead, behind, missing-upstream and interrupted states. The result contains the number checked, matching repositories, and inspection errors. An incomplete scan exits nonzero. Dependency and Git metadata directories are skipped.
+
+Use `--json` to consume workflows in scripts. A completed inspection can report a conflict or non-fast-forward condition with exit code zero. Inspect the report fields to set CI policy. For instance, after fetching the destination, run this in a shell with jq:
+
+```sh
+git branchback prepush --json | jq -e '.status == "up-to-date" or .status == "fast-forward"'
+```
 
 ## Daily Git checks (development checkout)
 
@@ -74,7 +102,7 @@ The destination would keep both commits at the current tip. The source would mov
 
 The new branch would point to the current tip. The original branch would point to the parent of the oldest selected commit. The path counts describe the current index and working tree. For example, one file staged and then edited again contributes to both the staged and unstaged totals. An untracked file contributes only to the third total.
 
-A successful preview exits with status 0 and stops there. BranchBack has no apply command. Review the branch names and commit IDs and verify that nobody else relies on the commit before performing any recovery separately.
+A successful preview exits with status 0 and stops there. The wrong-branch preview has no apply command. Review the branch names and commit IDs and verify that nobody else relies on the commit before performing any recovery separately.
 
 ## When a preview is unavailable
 
@@ -99,8 +127,8 @@ Mira commits an invoice fix on main, stages a test adjustment, then edits the sa
 | Change inventory | Parse NUL-delimited porcelain records with rename detection disabled; count index, working tree and untracked paths independently | Three path counts |
 | Renderer | Describe creating the destination at the tip, switching at the same tree, then moving the original branch to its parent | Human-readable hypothetical result, exit 0 |
 
-Git runs as a subprocess with argument arrays. The CLI invokes inspection commands only and disables optional index writes. It stores no credentials, telemetry or repository data. There is no server. Inputs are trusted local repositories and their Git configuration. Multiple reads do not form an atomic snapshot. Ref counts and publication evidence reflect local state only. Case-insensitive filesystem collisions, external processes and server-side rules can still prevent a future operation.
+Git runs as a subprocess with argument arrays. Report commands inspect local state with optional index writes disabled. Maintenance commands can create refs and worktrees when invoked with their documented action flags. There is no server. Inputs are trusted local repositories and their Git configuration. Multiple reads do not form an atomic snapshot. Ref counts and publication evidence reflect local state only. Case-insensitive filesystem collisions, external processes and server-side rules can still prevent a future operation.
 
 ## Acceptance and development
 
-Run `python3 -m unittest -v` in this checkout. Integration tests create throwaway Git repositories. A successful preview must preserve the current branch, HEAD, refs, index and working changes. Refused scenarios must exit nonzero. Existing destination branches, selecting a historical commit and executing recovery are outside this release. A future executor would require fresh precondition checks, a persistent recovery ref, and interruption and rollback tests before exposing an apply command.
+Run `python3 -m unittest -v` in this checkout. Integration tests create throwaway Git repositories. A successful preview must preserve the current branch, HEAD, refs, index and working changes. Refused scenarios must exit nonzero. The wrong-branch preview requires a fresh destination and a consecutive history range ending at HEAD. A future executor would require fresh precondition checks, a persistent recovery ref, and interruption and rollback tests before exposing an apply command.

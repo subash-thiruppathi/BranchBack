@@ -44,6 +44,20 @@
       <p>See where both branch tips would point and count your staged, unstaged and untracked changes. For the latest two commits together, use <code>git branchback --commits 2 feature/invoice</code>.</p>
     </section>
 
+    <section>
+      <h2>Find missing work</h2>
+      <p>Search reflogs with <code>recover</code>, look inside stashes with <code>stash-find</code>, or use <code>find</code> to locate branches containing a commit. Inspect merge stages with <code>conflicts</code> and review your options with <code>undo-plan</code>.</p>
+    </section>
+    <section>
+      <h2>Review and release</h2>
+      <p>Compare upstream history with <code>sync-plan</code>, inspect your branch using <code>review --base main</code>, and draft a release summary with <code>release-notes v1..v2</code>.</p>
+    </section>
+    <section>
+      <h2>Manage repositories</h2>
+      <p>Use <code>hotfix</code> to prepare a separate worktree, <code>checkpoint</code> to preserve unfinished changes, and <code>cleanup</code> to inspect merged branches.</p>
+      <code>git branchback workspace ~/projects --json</code>
+      <p>Find repositories that need attention across your projects folder.</p>
+    </section>
     <p>The <a href="https://www.npmjs.com/package/branchback/v/0.1.0">0.1.0 npm release</a> supports single-commit recovery previews. The development checkout includes all commands shown above.</p>
   </main>
 </body>

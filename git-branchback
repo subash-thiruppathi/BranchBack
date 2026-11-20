@@ -19,7 +19,7 @@ def git(*args):
     return result.stdout
 
 
-def preview(target):
+def preview(target, count):
     if git("rev-parse", "--is-inside-work-tree").strip() != b"true":
         raise Blocked("Open a repository working tree.")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]*", target):
@@ -34,18 +34,25 @@ def preview(target):
                    "rebase-apply", "sequencer", "BISECT_START"):
         if os.path.exists(os.fsdecode(git("rev-parse", "--git-path", marker).rstrip(b"\n"))):
             raise Blocked("Finish the current Git operation first.")
-    ancestry = git("rev-list", "--parents", "-n", "1", "HEAD").decode().split()
-    if len(ancestry) != 2:
-        raise Blocked("The latest commit must have exactly one visible parent.")
-    tip, parent = ancestry
-    if git("for-each-ref", "--contains", tip, "--format=%(refname)", "refs/remotes").strip():
-        raise Blocked("A known remote-tracking branch contains this commit.")
+    history = git("rev-list", "--first-parent", "--parents", "-n", str(count), "HEAD")
+    commits = [line.split() for line in history.decode().splitlines()]
+    if len(commits) != count or any(len(row) != 2 for row in commits):
+        raise Blocked("Each selected commit must have exactly one visible parent.")
+    tip = commits[0][0]
+    oldest, parent = commits[-1]
+    # Every selected commit descends from the oldest one.
+    if git("for-each-ref", "--contains", oldest, "--format=%(refname)", "refs/remotes").strip():
+        raise Blocked("A known remote-tracking branch contains a selected commit.")
     status = git("status", "--porcelain=v1", "-z", "--no-renames",
                  "--untracked-files=all", "--ignore-submodules=none").split(b"\0")
     codes = [entry[:2] for entry in status if entry]
     if any(c in (b"DD", b"AU", b"UD", b"UA", b"DU", b"AA", b"UU") for c in codes):
         raise Blocked("Resolve conflicted paths first.")
     print(f"Preview only\nNew branch {target} would point to {tip}.")
+    if count > 1:
+        print(f"Selected {count} consecutive commits, oldest first:")
+        for commit, _ in reversed(commits):
+            print(commit)
     print(f"Switching there at the same commit would retain your index and working files.")
     print(f"Then {source} would move back to {parent}.")
     print("Current paths: {} staged, {} unstaged, {} untracked.".format(
@@ -57,7 +64,12 @@ def preview(target):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("new_branch")
+    parser.add_argument("--commits", type=int, default=1, metavar="N",
+                        help="preview the latest N consecutive single-parent commits (default: 1)")
+    args = parser.parse_args()
+    if args.commits < 1 or args.commits > 2147483647:
+        parser.error("--commits must be between 1 and 2147483647")
     try:
-        preview(parser.parse_args().new_branch)
+        preview(args.new_branch, args.commits)
     except (Blocked, OSError, UnicodeError) as error:
         sys.exit("Preview unavailable: " + str(error))

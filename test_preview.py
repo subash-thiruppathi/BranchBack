@@ -22,8 +22,25 @@ class RecoveryTest(unittest.TestCase):
     def git(self, *args):
         return subprocess.check_output(["git", *args], cwd=self.repo)
 
-    def preview(self, name="feature/invoice"):
-        return subprocess.run([CLI, name], cwd=self.repo, capture_output=True, text=True)
+    def preview(self, name="feature/invoice", *options):
+        return subprocess.run([CLI, name, *options], cwd=self.repo, capture_output=True, text=True)
+
+    def test_multi_commit_range(self):
+        self.git("-c", "user.name=Test", "-c", "user.email=test@example.org",
+                 "commit", "--allow-empty", "-m", "second fix")
+        before = self.snapshot()
+        result = self.preview("feature/fixes", "--commits", "2")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("main would move back to " + self.git("rev-parse", "HEAD~2").decode().strip(),
+                      result.stdout)
+        self.assertEqual(before, self.snapshot())
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD^")
+        self.assertIn("remote-tracking", self.preview("feature/fixes", "--commits", "2").stderr)
+
+    def test_invalid_range(self):
+        for count in ("0", "-1", "3", "abc"):
+            with self.subTest(count=count):
+                self.assertNotEqual(self.preview("fix", "--commits", count).returncode, 0)
 
     def snapshot(self):
         return (self.git("symbolic-ref", "HEAD"), self.git("show-ref"),

@@ -20,6 +20,16 @@ git branchback feature/invoice
 
 For help, run `git branchback -h`. If Git cannot find the command, check that the npm global executable directory is on PATH and that `git-branchback -h` works directly.
 
+## Multiple commits on the wrong branch (development checkout)
+
+Suppose you committed an invoice fix and then its tests on main. Run the following from that repository:
+
+```sh
+git branchback --commits 2 feature/invoice
+```
+
+The destination would keep both commits at the current tip. The source would move to the parent of the older commit. The preview lists the selected IDs oldest first and counts unfinished edits. Choose a consecutive range ending at HEAD. A range crossing a merge, root, shallow boundary, or known remote-tracking history is declined. The published 0.1.0 CLI supports the single-commit form.
+
 ## Read the preview
 
 The first commit ID is the current tip. It would become the tip of the new branch. The second ID is its parent. It would become the original branch’s tip. The path counts describe the current index and working tree. For example, one file staged and then edited again contributes to both the staged and unstaged totals. An untracked file contributes only to the third total.

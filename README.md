@@ -1,0 +1,23 @@
+# Branch Preview
+
+A local, read-only CLI for a developer who committed the latest change on the wrong branch and wants it on a fresh branch. Requires Git and Python 3. Run the executable from the affected repository, or place it on PATH and run `git branch-preview feature/invoice`.
+
+## Use case
+
+Mira commits an invoice fix on main, stages a test adjustment, then edits the same file again. She wants the fix and both layers of unfinished work on feature/invoice. She runs the preview before touching either branch. It displays the proposed destination at the original commit and the source at its parent. Staged and unstaged counts overlap when a file has changes in both layers. Untracked files stay in the working directory. The plan assumes the developer confirms the tip was never shared. Re-run after any repository change.
+
+## Architecture
+
+| Component | Input and responsibility | Output |
+|---|---|---|
+| CLI boundary | Accept one new branch name, validate its spelling and Git ref syntax | Validated target or exit 1 (argument syntax errors exit 2) |
+| Repository reader | Ask local Git for worktree state, attached branch, parent history, branch namespace and remote-tracking refs | Full object IDs and local evidence |
+| Eligibility checks | Require a fresh target, an ordinary single-parent tip, no detected operation or conflicts, and no known remote branch containing the tip | Specific refusal or eligible snapshot |
+| Change inventory | Parse NUL-delimited porcelain records with rename detection disabled; count index, working tree and untracked paths independently | Three path counts |
+| Renderer | Describe creating the destination at the tip, switching at the same tree, then moving the original branch to its parent | Human-readable hypothetical result, exit 0 |
+
+Git runs as a subprocess with argument arrays. The CLI invokes inspection commands only and disables optional index writes. It stores no credentials, telemetry or repository data. There is no server. Inputs are trusted local repositories and their Git configuration. Multiple reads do not form an atomic snapshot. Ref counts and publication evidence reflect local state only. Case-insensitive filesystem collisions, external processes and server-side rules can still prevent a future operation.
+
+## Acceptance and development
+
+Run `python3 -m unittest -v` in this checkout. Integration tests create throwaway Git repositories. A successful preview must preserve the current branch, HEAD, refs, index and working changes. Refused scenarios must exit nonzero. Existing destination branches, selecting a historical commit and executing recovery are outside this release. A future executor would require fresh precondition checks, a persistent recovery ref, and interruption and rollback tests before exposing an apply command.

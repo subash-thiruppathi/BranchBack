@@ -2,6 +2,39 @@
 
 A local, read-only CLI for a developer who committed the latest change on the wrong branch and wants it on a fresh branch. Requires Git and Python 3. Run the executable from the affected repository, or place it on PATH and run `git branchback feature/invoice`.
 
+## Install and run
+
+Use a terminal with Git and Python 3 on PATH (macOS, Linux, or WSL). npm is needed only for npm installation. To use the current checkout immediately, install it from the directory containing this README:
+
+```sh
+npm install --global .
+```
+
+Once version 0.1.0 is published to npm, the registry installation command is `npm install --global branchback@0.1.0`. The package installs the executable as `git-branchback`, which Git discovers as a subcommand.
+
+Inside the repository where the mistake happened, choose a new branch name:
+
+```sh
+git branchback feature/invoice
+```
+
+For help, run `git branchback -h`. If Git cannot find the command, check that the npm global executable directory is on PATH and that `git-branchback -h` works directly.
+
+## Read the preview
+
+The first commit ID is the current tip. It would become the tip of the new branch. The second ID is its parent. It would become the original branch’s tip. The path counts describe the current index and working tree. For example, one file staged and then edited again contributes to both the staged and unstaged totals. An untracked file contributes only to the third total.
+
+A successful preview exits with status 0 and stops there. BranchBack has no apply command. Review the branch names and commit IDs and verify that nobody else relies on the commit before performing any recovery separately.
+
+## When a preview is unavailable
+
+| Situation | What to check |
+|---|---|
+| Destination already exists | Choose an unused branch name, including an available slash-separated prefix. |
+| HEAD is detached or has zero or multiple visible parents | Inspect `git status` and `git log -2 --oneline`. This workflow expects an attached branch with an ordinary latest commit. |
+| Merge, rebase, or other tracked operation in progress | Inspect `git status` and resolve that operation before revisiting the preview. |
+| A remote-tracking branch contains the commit | Review how the commit was shared. This workflow is for private commits. |
+
 ## Use case
 
 Mira commits an invoice fix on main, stages a test adjustment, then edits the same file again. She wants the fix and both layers of unfinished work on feature/invoice. She runs the preview before touching either branch. It displays the proposed destination at the original commit and the source at its parent. Staged and unstaged counts overlap when a file has changes in both layers. Untracked files stay in the working directory. The plan assumes the developer confirms the tip was never shared. Re-run after any repository change.
